@@ -103,4 +103,72 @@ Veilpipe/
 │   ├── config.py          all settings in one place
 │   ├── timing.py          decryption times from the papers, network delay
 │   ├── events.py          event queue and clock
-│
+│   ├── entities.py        Tx, Batch and related objects
+│   ├── committee.py       shares, release rule, failures
+│   ├── sequencer.py       arrivals, batching, sealing
+│   ├── pipeline.py        wires everything together
+│   ├── exchange.py        toy exchange
+│   ├── attacker.py        back-run and blind wrap attacks
+│   ├── ordering.py        seed and shuffle
+│   ├── metrics.py         summaries and confidence intervals
+│   ├── analytic.py        closed-form checks for the simulator
+│   └── rotation_math.py   collusion probabilities
+├── experiments/           one script per experiment, plus plots
+├── tests/                 unit tests and fakes
+├── demo/                  optional crypto demo for the seminar
+└── results/               CSV files and figures
+```
+
+## Getting started
+
+You need Python 3.11 or newer.
+
+```bash
+git clone https://github.com/Shreya5473/Veilpipe.git
+cd Veilpipe
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest
+python -m experiments.exp1_throughput
+```
+
+Tests and experiments are added as we build them, so some commands will not do anything yet.
+
+## Configuration
+
+All settings live in one config object. Base values are in bold.
+
+| Parameter | Values |
+|---|---|
+| Committee size N | 16, **32**, 64, 128 |
+| Subsets S | **1**, 2, 4 |
+| Threshold t | **2/3 of the subset**, 1/2 of the subset |
+| Block time | 250, **500**, 1000, 2000 ms |
+| Arrival rate | 32, **64**, 128, 256 tx/s |
+| Network delay (median) | 20, **50**, 100, 200 ms |
+| Scheme timings | BTE 2024, one-time setup 2025, BEAT-MEV |
+| Release rule | **0**, 1, 2 batches |
+| Share withholding | 0, 5, 10, 20, 33 % |
+| Seed source | **threshold decryption**, beacon, trusted hardware |
+| Runs per setting | 30 seeds, 120 s simulated, 10 s warmup |
+
+## Experiments
+
+| # | Script | Question |
+|---|---|---|
+| 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? |
+| 2 | `exp2_release_rule.py` | How much back-running does the release rule reduce, and what delay does it cost? |
+| 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? |
+| 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? |
+| 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? |
+| 6 | `exp6_faults.py` | What happens when members withhold shares? |
+
+## Assumptions and limitations
+
+- Decryption times come from the published papers (single-threaded laptop runs). No real cryptography runs inside the simulator.
+- Network delays are random draws from a distribution we chose.
+- The attacker is simplified, and the outside price of the asset is constant.
+- Members are assumed to be corrupted independently.
+- With one key shared by the whole committee, rotating subsets does not add confidentiality. We treat subsets as a load and liveness benefit.
+- Delaying the reveal reduces and delays back-running. It does not remove it.
