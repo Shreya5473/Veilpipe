@@ -1,0 +1,5 @@
+design,trials,shuffled,mean_attacker_profit_y,median_attacker_profit_y,attacker_loss_rate,front_before_back_rate,correct_guess_rate,mean_order_delay_ms
+fifo,2000,False,328.86567441967287,440.1517854556969,0.1595,1.0,0.85,0.0
+threshold,2000,True,-46.55100118910352,-53.81960483446346,0.6225,0.4965,0.85,0.0
+hardware,2000,True,-53.45624808373578,-54.21754115413842,0.6215,0.4755,0.85,0.0
+beacon,2000,True,-43.49151534195391,-48.471141799367615,0.603,0.5135,0.85,1631.0
