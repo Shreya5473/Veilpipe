@@ -30,7 +30,6 @@ class Pipeline:
         self._completed: list[Batch] = []
 
     def run(self, duration_ms: float | None = None) -> list[Batch]:
-        """Run the event loop and return completed batches sorted by batch_id."""
         end_ms = float(duration_ms) if duration_ms is not None else self.cfg.sim_duration_ms
 
         for tx in self._seq.arrival_stream(0.0, end_ms):
