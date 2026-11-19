@@ -17,7 +17,6 @@ class Sequencer:
         self._tx_counter = 0
 
     def arrival_stream(self, start_ms: float, end_ms: float) -> Iterator[Tx]:
-        """Yield Tx objects with Poisson inter-arrival times."""
         rate = self.cfg.arrival_rate_tps / 1_000.0
         t = float(start_ms)
         while True:
@@ -37,7 +36,6 @@ class Sequencer:
         self._pending.extend(txs)
 
     def seal(self, now_ms: float) -> Batch | None:
-        """Seal up to batch_size_max pending txs into a Batch."""
         if not self._pending:
             return None
         to_seal = self._pending[: self.cfg.batch_size_max]
