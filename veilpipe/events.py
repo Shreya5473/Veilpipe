@@ -5,8 +5,6 @@ from typing import Any
 
 
 class Clock:
-    """Monotone simulation clock — time only moves forward."""
-
     __slots__ = ("_now",)
 
     def __init__(self, start_ms: float = 0.0):
@@ -27,8 +25,6 @@ class Clock:
 
 
 class EventQueue:
-    """Min-heap event queue; ties broken by insertion order (FIFO)."""
-
     __slots__ = ("_heap", "_counter")
 
     def __init__(self):
