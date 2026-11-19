@@ -11,15 +11,12 @@ class Tx:
     direction: str
     amount_in: float
     arrive_ms: float
-
-    # stamped progressively by the pipeline
     sealed_ms: float | None = None
     reveal_ms: float | None = None
     execute_ms: float | None = None
     batch_id: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
-    # Pool.swap / attacker compatibility
     @property
     def amount(self): return self.amount_in
     @property
