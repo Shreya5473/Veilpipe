@@ -1,0 +1,167 @@
+"""Sequencer: Poisson arrivals, pending queue, and batch sealing.
+
+The sequencer is the entry point of the pipeline.  It generates user
+transactions at random times and groups them into sealed batches for the
+committee to decrypt.
+
+Usage::
+
+    import random
+    from veilpipe.config import SimConfig
+    from veilpipe.sequencer import Sequencer
+
+    cfg = SimConfig(arrival_rate_tps=64.0, block_interval_ms=500.0)
+    seq = Sequencer(cfg, random.Random(42))
+
+    # Pre-generate all arrivals for a 10-second simulation.
+    for tx in seq.arrival_stream(0.0, 10_000.0):
+        seq.add([tx])
+
+    batch = seq.seal(500.0)   # First batch at t=500 ms.
+"""
+
+from __future__ import annotations
+
+import random
+from typing import Iterator
+
+from .config import SimConfig
+from .entities import Batch, Tx
+from .exchange import X_TO_Y, Y_TO_X
+
+
+class Sequencer:
+    """Generates Poisson arrivals and seals batches for the pipeline.
+
+    Parameters
+    ----------
+    cfg:
+        Simulation configuration.
+    rng:
+        Random number generator.  Seed this for reproducible results.
+        The same seed always produces the same arrival stream.
+
+    Notes
+    -----
+    Transaction IDs are ``"tx-{counter}"`` and are unique within a run.
+    Batch IDs are monotonically increasing integers starting at 0.
+    """
+
+    def __init__(self, cfg: SimConfig, rng: random.Random) -> None:
+        self.cfg = cfg
+        self.rng = rng
+        self._pending: list[Tx] = []
+        self._batch_counter: int = 0
+        self._tx_counter: int = 0
+
+    # ── Arrivals ──────────────────────────────────────────────────────────
+
+    def arrival_stream(self, start_ms: float, end_ms: float) -> Iterator[Tx]:
+        """Yield ``Tx`` objects with Poisson inter-arrival times.
+
+        Inter-arrival gaps follow ``Exponential(rate_per_ms)`` where
+        ``rate_per_ms = cfg.arrival_rate_tps / 1000``.  Each ``Tx`` has:
+
+        - A random canonical direction (x_to_y or y_to_x, equal probability).
+        - A random input amount drawn from ``Uniform(100, 5000)``.
+        - A unique ``tx_id`` of the form ``"tx-{n}"``.
+
+        The same ``(rng, start_ms, end_ms)`` triple always produces the same
+        sequence, making experiments reproducible and seed-comparable.
+
+        Parameters
+        ----------
+        start_ms:
+            First possible arrival time.
+        end_ms:
+            No arrivals are yielded at or after this time.
+        """
+        rate_per_ms = self.cfg.arrival_rate_tps / 1_000.0
+        t = float(start_ms)
+        while True:
+            dt = self.rng.expovariate(rate_per_ms)
+            t += dt
+            if t > end_ms:
+                break
+            tx = Tx(
+                tx_id=f"tx-{self._tx_counter}",
+                direction=self.rng.choice((X_TO_Y, Y_TO_X)),
+                amount_in=self.rng.uniform(100.0, 5_000.0),
+                arrive_ms=t,
+            )
+            self._tx_counter += 1
+            yield tx
+
+    def add(self, txs: list[Tx]) -> None:
+        """Append ``txs`` to the internal pending queue in arrival order."""
+        self._pending.extend(txs)
+
+    # ── Sealing ───────────────────────────────────────────────────────────
+
+    def seal(self, now_ms: float) -> Batch | None:
+        """Pop up to ``cfg.batch_size_max`` pending txs into a new ``Batch``.
+
+        Side-effects on each sealed ``Tx``:
+        - ``tx.sealed_ms = now_ms``
+        - ``tx.batch_id  = batch.batch_id``
+
+        The batch's ``release_ms`` is set to enforce the release rule::
+
+            release_ms = now_ms + cfg.release_rule * cfg.block_interval_ms
+
+        Returns ``None`` if the pending queue is empty.
+
+        Parameters
+        ----------
+        now_ms:
+            Current simulation time (ms) at which the seal event fires.
+        """
+        if not self._pending:
+            return None
+
+        # Pop at most batch_size_max transactions.
+        to_seal = self._pending[: self.cfg.batch_size_max]
+        self._pending = self._pending[self.cfg.batch_size_max :]
+
+        bid = self._batch_counter
+        self._batch_counter += 1
+
+        release_ms = float(now_ms) + self.cfg.release_rule * self.cfg.block_interval_ms
+
+        for tx in to_seal:
+            tx.sealed_ms = float(now_ms)
+            tx.batch_id = bid
+
+        return Batch(
+            batch_id=bid,
+            txs=to_seal,
+            seal_ms=float(now_ms),
+            release_ms=release_ms,
+        )
+
+    # ── Diagnostics ───────────────────────────────────────────────────────
+
+    @property
+    def pending_count(self) -> int:
+        """Number of transactions currently waiting to be sealed."""
+        return len(self._pending)
+
+    @property
+    def batches_sealed(self) -> int:
+        """Total number of batches sealed so far."""
+        return self._batch_counter
+
+    @property
+    def txs_generated(self) -> int:
+        """Total number of transactions generated by arrival_stream so far."""
+        return self._tx_counter
+
+    def __repr__(self) -> str:
+        return (
+            f"Sequencer(pending={self.pending_count}, "
+            f"batches={self.batches_sealed}, "
+            f"txs={self.txs_generated})"
+        )
+
+
+__all__ = ["Sequencer"]
