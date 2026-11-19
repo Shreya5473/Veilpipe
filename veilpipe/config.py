@@ -10,39 +10,24 @@ VALID_DESIGNS = frozenset({"sequential", "pipelined"})
 
 @dataclass
 class SimConfig:
-    # Timing
     block_interval_ms: float = 500.0
     warmup_s: float = 10.0
     sim_duration_s: float = 120.0
-
-    # Arrivals
     arrival_rate_tps: float = 64.0
     batch_size_max: int = 256
-
-    # Committee
     committee_size: int = 32
     subsets: int = 1
     threshold_frac: float = 2 / 3
-
-    # Network
     network_delay_median_ms: float = 50.0
     network_delay_sigma: float = 0.5
-
-    # Scheme and release
     scheme: str = "BTE2024"
     release_rule: int = 0
     seed_source: str = "threshold"
     beacon_period_ms: float = 3_000.0
-
-    # Attacker
     attacker_trade_size: float = 10_000.0
     leak_q: float = 0.5
     reaction_time_ms: float = 50.0
-
-    # Withholding
     withhold_fraction: float = 0.0
-
-    # Simulation
     seed: int = 0
     design: str = "pipelined"
 
