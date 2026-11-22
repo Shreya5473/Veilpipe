@@ -9,8 +9,6 @@ from veilpipe.rotation_math import (
 
 
 def test_exact_probability_matches_hand_computable_case():
-    # From four members with two attackers, a two-person committee has both
-    # attackers in exactly one of the six equally likely samples.
     assert compromise_probability(4, 2, 2, 2) == pytest.approx(1 / 6)
 
 

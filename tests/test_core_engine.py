@@ -1,15 +1,3 @@
-"""Tests for Shreya's core engine modules.
-
-Covers:
-- SimConfig: defaults, validation, derived properties
-- Clock: advance, backward-move rejection
-- EventQueue: ordering, FIFO ties, peek, len, bool
-- Tx / Batch: timestamps, delay_ms, properties
-- Sequencer: arrival_stream, seal, pending_count
-- Pipeline: sequential and pipelined, release rule, retries
-- metrics.compute / run_many: throughput, CI, stability
-"""
-
 from __future__ import annotations
 
 import math
@@ -24,11 +12,6 @@ from veilpipe.events import Clock, EventQueue
 from veilpipe.metrics import Metrics, compute, run_many
 from veilpipe.pipeline import MAX_RETRIES, Pipeline
 from veilpipe.sequencer import Sequencer
-
-
-# ===========================================================================
-# SimConfig
-# ===========================================================================
 
 
 class TestSimConfig:
@@ -60,7 +43,6 @@ class TestSimConfig:
         assert isinstance(d, dict)
         assert d["arrival_rate_tps"] == 64.0
 
-    # Validation errors
     @pytest.mark.parametrize("field,value", [
         ("block_interval_ms", 0),
         ("block_interval_ms", -1),
@@ -91,11 +73,6 @@ class TestSimConfig:
             SimConfig(committee_size=4, subsets=8)
 
 
-# ===========================================================================
-# Clock
-# ===========================================================================
-
-
 class TestClock:
     def test_initial_time(self):
         c = Clock(10.0)
@@ -120,11 +97,6 @@ class TestClock:
         c = Clock(500.0)
         c.reset(0.0)
         assert c.now == 0.0
-
-
-# ===========================================================================
-# EventQueue
-# ===========================================================================
 
 
 class TestEventQueue:
@@ -175,11 +147,6 @@ class TestEventQueue:
         assert len(eq) == 1
         eq.pop()
         assert not eq
-
-
-# ===========================================================================
-# Tx / Batch entities
-# ===========================================================================
 
 
 class TestTx:
@@ -242,11 +209,6 @@ class TestBatch:
         assert len(b) == 32
 
 
-# ===========================================================================
-# Sequencer
-# ===========================================================================
-
-
 class TestSequencer:
     def _make_seq(self, seed: int = 42) -> tuple[Sequencer, SimConfig]:
         cfg = SimConfig(arrival_rate_tps=64.0, batch_size_max=10)
@@ -256,7 +218,6 @@ class TestSequencer:
     def test_arrival_stream_produces_txs(self):
         seq, cfg = self._make_seq()
         txs = list(seq.arrival_stream(0.0, 1_000.0))
-        # Expect roughly 64 txs in 1 second; allow generous tolerance.
         assert 20 <= len(txs) <= 150
 
     def test_arrival_stream_times_monotone(self):
@@ -284,7 +245,7 @@ class TestSequencer:
         batch = seq.seal(500.0)
         assert batch is not None
         assert batch.seal_ms == 500.0
-        assert batch.release_ms == pytest.approx(500.0)  # release_rule=0
+        assert batch.release_ms == pytest.approx(500.0)
         for tx in batch.txs:
             assert tx.sealed_ms == 500.0
             assert tx.batch_id == 0
@@ -305,7 +266,6 @@ class TestSequencer:
         seq.add([Tx("tx-0", "x_to_y", 100.0, 0.0)])
         b = seq.seal(500.0)
         assert b is not None
-        # release_ms = 500 + 2 * 500 = 1500
         assert b.release_ms == pytest.approx(1_500.0)
 
     def test_no_lost_txs(self):
@@ -319,11 +279,6 @@ class TestSequencer:
             if b:
                 all_ids.extend(tx.tx_id for tx in b.txs)
         assert sorted(all_ids) == sorted(tx.tx_id for tx in txs)
-
-
-# ===========================================================================
-# Pipeline
-# ===========================================================================
 
 
 class TestPipeline:
@@ -364,7 +319,6 @@ class TestPipeline:
         assert ids == sorted(ids)
 
     def test_no_lost_txs(self):
-        """Every generated tx must appear in exactly one batch."""
         cfg = SimConfig(sim_duration_s=5.0, warmup_s=0.0)
         committee = FakeCommittee(cfg)
         pool = FakePool()
@@ -373,11 +327,9 @@ class TestPipeline:
         all_ids = []
         for b in batches:
             all_ids.extend(tx.tx_id for tx in b.txs)
-        # All IDs should be unique.
         assert len(all_ids) == len(set(all_ids))
 
     def test_release_rule_respected(self):
-        """With release_rule=1, reveal_ms must be >= seal_ms + block_interval_ms."""
         batches = self._run(release_rule=1)
         cfg = SimConfig(release_rule=1)
         for b in batches:
@@ -385,28 +337,18 @@ class TestPipeline:
                 assert b.reveal_ms >= b.seal_ms + cfg.block_interval_ms - 1e-6
 
     def test_pipelined_higher_throughput_than_sequential(self):
-        """Pipelined should achieve comparable or higher throughput."""
         bP = self._run("pipelined", duration_s=30.0)
         bS = self._run("sequential", duration_s=30.0)
         cfg = SimConfig(sim_duration_s=30.0, warmup_s=2.0)
         mP = compute(bP, cfg)
         mS = compute(bS, cfg)
-        # Pipelined tps >= sequential tps (or within 5% due to warmup variation).
         assert mP.throughput_tps >= mS.throughput_tps * 0.95
 
     def test_retry_on_failure(self):
-        """Batches that fail should have retry_count > 0 until exhausted."""
         batches = self._run(fail_rate=1.0, duration_s=5.0)
-        # With 100% failure rate all batches should be marked failed.
-        # Pipeline stops retrying after MAX_RETRIES.
         for b in batches:
             assert b.failed
             assert b.retry_count <= MAX_RETRIES
-
-
-# ===========================================================================
-# Metrics
-# ===========================================================================
 
 
 class TestMetrics:
@@ -457,7 +399,6 @@ class TestMetrics:
     def test_warmup_excludes_early_batches(self):
         batches = self._batches(n_batches=10, tx_per_batch=5, execute_ms=100.0)
         cfg = SimConfig(warmup_s=0.0)
-        # warmup_ms = 3000 ms should exclude first 5 batches.
         m = compute(batches, cfg, warmup_ms=3_000.0)
         assert m.n_txs < 50
 
@@ -468,11 +409,8 @@ class TestMetrics:
         assert m.n_txs == 0
 
     def test_stability_flag(self):
-        cfg = SimConfig(arrival_rate_tps=10.0, warmup_s=0.0, sim_duration_s=120.0)
-        # 1000 txs / 120 s = 8.33 tps which is < 0.9*10 = 9.0, so set arrival low
         cfg2 = SimConfig(arrival_rate_tps=5.0, warmup_s=0.0, sim_duration_s=120.0)
         batches = self._batches(n_batches=10, tx_per_batch=100, execute_ms=0.0)
-        # 1000 txs / 120s = 8.33 >= 0.9*5 = 4.5 → stable
         m = compute(batches, cfg2)
         assert m.is_stable
 
@@ -496,11 +434,6 @@ class TestMetrics:
         d = m.as_dict()
         assert "throughput_tps" in d
         assert "p99_delay_ms" in d
-
-
-# ===========================================================================
-# FakeCommittee / FakePool
-# ===========================================================================
 
 
 class TestFakes:

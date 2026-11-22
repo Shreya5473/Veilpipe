@@ -59,7 +59,6 @@ def compute(batches: Iterable[Batch], cfg: SimConfig, warmup_ms: float = 0.0) ->
         return Metrics(0.0, float("nan"), float("nan"), float("nan"), float("nan"),
                        False, 0.0, 0.0, len(good), 0, n_failed)
 
-    # Unbiased window: txs executed in [warmup_ms, sim_duration_ms]
     window_s = (cfg.sim_duration_ms - warmup_ms) / 1_000.0
     if window_s <= 0:
         window_s = 1.0

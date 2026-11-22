@@ -1,5 +1,3 @@
-"""Regression tests for Veilpipe bug fixes."""
-
 from __future__ import annotations
 
 import math
@@ -14,14 +12,12 @@ from veilpipe.pipeline import MAX_RETRIES, Pipeline
 
 
 class TestSequentialStallBug:
-    """Bug 1: sequential design must not stall when seal returns None or batch fails."""
-
     def test_sequential_always_failing_committee_completes_many_batches(self):
         cfg = SimConfig(design="sequential", sim_duration_s=30, warmup_s=2,
                         arrival_rate_tps=64.0)
         batches = Pipeline(cfg, FakeCommittee(cfg, fail_rate=1.0)).run()
-        assert len(batches) > 1, "sequential+fail_rate=1 stalled after 1 batch"
-        assert all(b.failed for b in batches), "all batches should be marked failed"
+        assert len(batches) > 1
+        assert all(b.failed for b in batches)
         assert all(b.retry_count <= MAX_RETRIES for b in batches)
 
     def test_sequential_low_arrival_keeps_sealing_after_empty(self):
@@ -29,7 +25,7 @@ class TestSequentialStallBug:
                         block_interval_ms=250, sim_duration_s=30, warmup_s=2)
         batches = Pipeline(cfg, FakeCommittee(cfg)).run()
         good = [b for b in batches if not b.failed]
-        assert len(good) > 1, "sequential+low_arrival stalled after empty seals"
+        assert len(good) > 1
 
     def test_sequential_completes_comparable_to_pipelined_with_no_failures(self):
         cfg_s = SimConfig(design="sequential", sim_duration_s=10, warmup_s=0,
@@ -42,8 +38,6 @@ class TestSequentialStallBug:
 
 
 class TestThroughputBias:
-    """Bug 2: throughput must be unbiased (within 5% of arrival_rate_tps)."""
-
     @pytest.mark.parametrize("interval,design", [
         (250, "pipelined"), (500, "pipelined"), (1000, "pipelined"), (2000, "pipelined"),
         (250, "sequential"), (500, "sequential"),
@@ -53,17 +47,12 @@ class TestThroughputBias:
         cfg = SimConfig(arrival_rate_tps=arrival, block_interval_ms=float(interval),
                         design=design, sim_duration_s=60.0, warmup_s=10.0)
         m = run_many(cfg, lambda c, r: FakeCommittee(c), n_seeds=5)
-        assert m.is_stable, f"{design}/{interval}ms should be stable"
+        assert m.is_stable
         pct_err = abs(m.throughput_tps - arrival) / arrival * 100
-        assert pct_err <= 5.0, (
-            f"{design}/{interval}ms: tps={m.throughput_tps:.2f}, "
-            f"expected ~{arrival}, error={pct_err:.1f}%"
-        )
+        assert pct_err <= 5.0
 
 
 class TestConfigTimeoutMs:
-    """timeout_ms field validation."""
-
     def test_default_timeout_ms(self):
         cfg = SimConfig()
         assert cfg.timeout_ms == 1000.0
@@ -79,8 +68,6 @@ class TestConfigTimeoutMs:
 
 
 class TestExp2AttackerReplay:
-    """Bug 3: batch gap should be non-decreasing as release_rule increases."""
-
     def test_batch_gap_nondecreasing_with_release_rule(self):
         sys_path_patch()
         from experiments.exp2_release_rule import replay_attacker_profit
@@ -94,12 +81,9 @@ class TestExp2AttackerReplay:
             gaps.append(result["mean_gap"])
 
         finite_gaps = [g for g in gaps if not math.isnan(g)]
-        assert len(finite_gaps) >= 2, "Not enough data to compare gaps"
+        assert len(finite_gaps) >= 2
         for i in range(len(finite_gaps) - 1):
-            assert finite_gaps[i] <= finite_gaps[i + 1] + 0.01, (
-                f"Batch gap should be non-decreasing: rule{i}={finite_gaps[i]:.2f} "
-                f"> rule{i+1}={finite_gaps[i+1]:.2f}"
-            )
+            assert finite_gaps[i] <= finite_gaps[i + 1] + 0.01
 
 
 def sys_path_patch():

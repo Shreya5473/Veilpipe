@@ -1,15 +1,3 @@
-"""A small constant-product exchange used by the attack experiments.
-
-The pool follows the Uniswap-v2 convention: the fee is deducted from the
-input for pricing, while the complete input is added to the reserve.  The
-result is that ``x * y`` stays constant with a zero fee and grows when fees
-are enabled.
-
-Prices and profits are quoted in asset ``y``.  A direction of ``x_to_y``
-means that the trader sells x to the pool; ``y_to_x`` means that the trader
-sells y to the pool.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -22,20 +10,12 @@ Y_TO_X = "y_to_x"
 
 
 class _CallableFloat(float):
-    """A float that also supports ``value()`` for interface compatibility."""
-
     def __call__(self) -> float:
         return float(self)
 
 
 @dataclass(slots=True)
 class Trade:
-    """Minimal transaction understood by :class:`Pool` and the attacker.
-
-    Extra metadata is intentionally carried in a dictionary so this class can
-    coexist with richer transaction classes implemented by other team members.
-    """
-
     direction: str
     amount_in: float
     ready_ms: float = 0.0
@@ -51,30 +31,12 @@ class Trade:
 
 
 def normalize_direction(direction: Any) -> str:
-    """Return a canonical swap direction.
-
-    A few common aliases are accepted so experiments can consume transactions
-    produced by independent modules without an adapter.
-    """
-
     value = str(direction).strip().lower().replace("-", "_").replace(" ", "_")
     x_aliases = {
-        X_TO_Y,
-        "x2y",
-        "sell_x",
-        "sell",
-        "down",
-        "0_to_1",
-        "token0_to_token1",
+        X_TO_Y, "x2y", "sell_x", "sell", "down", "0_to_1", "token0_to_token1",
     }
     y_aliases = {
-        Y_TO_X,
-        "y2x",
-        "sell_y",
-        "buy",
-        "up",
-        "1_to_0",
-        "token1_to_token0",
+        Y_TO_X, "y2x", "sell_y", "buy", "up", "1_to_0", "token1_to_token0",
     }
     if value in x_aliases:
         return X_TO_Y
@@ -94,8 +56,6 @@ def _trade_field(trade: Any, name: str, default: Any = None) -> Any:
 
 
 class Pool:
-    """Constant-product pool with one million units of each reserve by default."""
-
     def __init__(
         self,
         x: float = 1_000_000.0,
@@ -139,12 +99,6 @@ class Pool:
 
     @property
     def price(self) -> _CallableFloat:
-        """Spot price of one unit of x, denominated in y.
-
-        The returned float is callable, so both ``pool.price`` and
-        ``pool.price()`` work.
-        """
-
         return _CallableFloat(self.y / self.x)
 
     def copy(self) -> "Pool":
@@ -156,12 +110,6 @@ class Pool:
         amount_in: float | None = None,
         **kwargs: Any,
     ) -> float:
-        """Execute a swap and return the amount of output asset.
-
-        ``direction`` may be a direction string or any object/dictionary with
-        ``direction`` and ``amount_in`` (or ``amount``) fields.
-        """
-
         if not isinstance(direction, str):
             trade = direction
             direction = _trade_field(trade, "direction")
@@ -198,13 +146,6 @@ class Pool:
         return float(output)
 
     def arbitrage_to(self, p_ext: float) -> float:
-        """Trade toward an outside price and return profit in units of y.
-
-        The closed-form trade sets the post-trade spot price to ``p_ext``.
-        If that move is not profitable after fees (the outside price lies in
-        the pool's fee band), the pool is left unchanged and zero is returned.
-        """
-
         try:
             target = float(p_ext)
         except (TypeError, ValueError) as exc:
@@ -217,7 +158,6 @@ class Pool:
 
         gamma = 1.0 - self.fee
         if target > current:
-            # (y+a)(y+gamma*a) = target*x*y
             b = self.y * (1.0 + gamma)
             c = self.y * self.y - target * self.x * self.y
             amount = (-b + math.sqrt(max(0.0, b * b - 4.0 * gamma * c))) / (2.0 * gamma)
@@ -231,7 +171,6 @@ class Pool:
             self.x, self.y = preview.x, preview.y
             return float(profit)
 
-        # x*y / ((x+a)(x+gamma*a)) = target
         b = self.x * (1.0 + gamma)
         c = self.x * self.x - (self.x * self.y / target)
         amount = (-b + math.sqrt(max(0.0, b * b - 4.0 * gamma * c))) / (2.0 * gamma)

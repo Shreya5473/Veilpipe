@@ -66,8 +66,6 @@ class Pipeline:
         if batch is not None:
             self._start_decryption(batch, now_ms)
         else:
-            # No txs pending — in sequential mode we must still reschedule
-            # or the simulation stalls with nothing left in the event queue.
             if self.cfg.design == "sequential":
                 self._next_seal(now_ms)
         if self.cfg.design == "pipelined":
@@ -84,7 +82,6 @@ class Pipeline:
             else:
                 batch.failed = True
                 self._completed.append(batch)
-                # In sequential mode: batch is done (failed); schedule next seal.
                 if self.cfg.design == "sequential":
                     self._next_seal(fail_ms if fail_ms is not None else seal_ms)
         else:

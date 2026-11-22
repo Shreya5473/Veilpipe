@@ -1,5 +1,3 @@
-"""Deterministic transaction ordering and seed-readiness rules."""
-
 from __future__ import annotations
 
 import hashlib
@@ -27,12 +25,6 @@ def _as_bytes(value: Any) -> bytes:
 
 
 def make_seed(batch_id: Any, combined_bytes: bytes | bytearray | memoryview | Any) -> bytes:
-    """Bind a shuffle seed to a batch and its combined decryption output.
-
-    Both fields are length-prefixed to avoid ambiguous concatenations.  The
-    function returns the 32-byte SHA-256 digest.
-    """
-
     batch = _as_bytes(batch_id)
     combined = _as_bytes(combined_bytes)
     digest = hashlib.sha256()
@@ -45,8 +37,6 @@ def make_seed(batch_id: Any, combined_bytes: bytes | bytearray | memoryview | An
 
 
 class _HashStream:
-    """Counter-mode SHA-256 stream with unbiased bounded integers."""
-
     def __init__(self, seed: bytes) -> None:
         self.seed = hashlib.sha256(_DOMAIN + b"shuffle\x00" + seed).digest()
         self.counter = 0
@@ -68,12 +58,6 @@ class _HashStream:
 
 
 def shuffle(txs: Iterable[T], seed: bytes | bytearray | memoryview | Any) -> list[T]:
-    """Return a deterministic Fisher-Yates permutation of ``txs``.
-
-    The input is never mutated.  Each item is retained exactly once, including
-    duplicate values and repeated object references.
-    """
-
     result = list(txs)
     stream = _HashStream(_as_bytes(seed))
     for index in range(len(result) - 1, 0, -1):
@@ -92,13 +76,6 @@ def _cfg_value(cfg: Any, names: tuple[str, ...], default: Any) -> Any:
 
 
 def order_ready_ms(seed_source: str, seal_ms: float, reveal_ms: float, cfg: Any = None) -> float:
-    """Return the first time at which an ordering seed is available.
-
-    Threshold-derived and hardware seeds are available at reveal.  A beacon
-    seed is the first beacon tick *strictly after* seal, but the ordering step
-    still cannot run before reveal.  Beacon ticks default to every 3,000 ms.
-    """
-
     source = str(seed_source).strip().lower().replace("-", "_")
     seal = float(seal_ms)
     reveal = float(reveal_ms)

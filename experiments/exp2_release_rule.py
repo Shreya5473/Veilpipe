@@ -1,23 +1,3 @@
-"""Experiment 2: Release Rule Comparison
-
-Sweeps release_rule ∈ {0,1,2} × scheme ∈ {BTE2024, OTS2025, BEATMEV}.
-Measures latency, throughput, and attacker back-run profit via proper replay.
-Saves CSV + plots to results/.
-
-Assumptions:
-- FakeCommittee is used by default; scheme timings are NOT modelled,
-  so all three schemes give identical throughput/latency rows.
-- arb_prob (default 0.5): after each executed batch, an arbitrageur resets
-  the pool price to 1.0 with this probability. Without this, price displacement
-  persists indefinitely and back-run profit is not comparable across rules.
-- outside_price is fixed at 1.0 (constant-price attacker model).
-
-Usage:
-    python experiments/exp2_release_rule.py          # full run (30 seeds, 120 s)
-    python experiments/exp2_release_rule.py --quick  # fast preview
-    python -m experiments.exp2_release_rule --quick  # module invocation
-    python experiments/exp2_release_rule.py --committee real  # use real committee
-"""
 
 import argparse
 import os
@@ -50,16 +30,6 @@ RULE_LABELS = {0: "Rule 0\n(immediate)", 1: "Rule 1\n(+1 seal)", 2: "Rule 2\n(+2
 
 
 def replay_attacker_profit(batches, cfg, arb_prob=0.5, outside_price=1.0, rng=None):
-    """
-    Proper replay: walk batches in execution order on a shared pool.
-    For each non-failed batch N after warmup, call on_reveal to get the
-    back-run trade. Find target batch M (first batch whose seal_ms >=
-    trade.ready_ms). Insert the attacker trade into M's execution,
-    re-shuffle with M's original seed, execute, and record profit.
-    After each batch, with probability arb_prob reset pool price to outside_price.
-
-    Returns dict with keys: mean_profit, ci_low, ci_high, frac_immediate, mean_gap.
-    """
     if rng is None:
         rng = random.Random(cfg.seed)
 
@@ -71,20 +41,14 @@ def replay_attacker_profit(batches, cfg, arb_prob=0.5, outside_price=1.0, rng=No
         return {"mean_profit": 0.0, "ci_low": 0.0, "ci_high": 0.0,
                 "frac_immediate": float("nan"), "mean_gap": float("nan")}
 
-    # Build index: batch_id -> position in good list
     good_by_id = {b.batch_id: i for i, b in enumerate(good)}
-
-    # Map: target batch_id -> list of attacker Trade objects to inject
     pending_attacks: dict[int, list] = {}
-
-    # Walk non-failed batches after warmup to plan attacks
     for b in good:
         if b.execute_ms is not None and b.execute_ms < cfg.warmup_ms:
             continue
         if b.reveal_ms is None:
             continue
         trade = on_reveal(b, b.reveal_ms, cfg)
-        # Find first batch M where seal_ms >= trade.ready_ms
         target = None
         for candidate in good:
             if candidate.seal_ms >= trade.ready_ms and candidate.batch_id != b.batch_id:
@@ -94,19 +58,16 @@ def replay_attacker_profit(batches, cfg, arb_prob=0.5, outside_price=1.0, rng=No
             continue
         pending_attacks.setdefault(target.batch_id, []).append((b.batch_id, trade))
 
-    # Now replay all batches in execution order
     pool = Pool()
     profits: list[float] = []
     gaps: list[int] = []
     immediate_count = 0
 
     for i, b in enumerate(good):
-        # Determine attacker trades to insert into this batch
         attacks = pending_attacks.get(b.batch_id, [])
         if attacks:
             attacker_x = 0.0
             attacker_y = 0.0
-            # Build combined tx list: original user txs + attacker trades, then re-shuffle
             combined = list(b.txs) + [a_trade for _, a_trade in attacks]
             seed_bytes = make_seed(b.batch_id, b.combined_bytes)
             combined_shuffled = shuffle(combined, seed_bytes)
@@ -138,14 +99,12 @@ def replay_attacker_profit(batches, cfg, arb_prob=0.5, outside_price=1.0, rng=No
                 if gap == 1:
                     immediate_count += 1
         else:
-            # Execute normally
             for tx in b.txs:
                 try:
                     pool.swap(tx)
                 except (ValueError, ZeroDivisionError):
                     pass
 
-        # Arbitrageur step
         if rng.random() < arb_prob:
             try:
                 pool.arbitrage_to(outside_price)
@@ -204,7 +163,6 @@ def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, arb_prob):
             t0 = time.perf_counter()
             m = run_many(cfg, committee_factory, n_seeds=n_seeds)
 
-            # Gather per-seed attacker stats for CI
             import dataclasses
             per_seed_profits = []
             for s in range(n_seeds):
@@ -328,7 +286,6 @@ def main():
     print(df[cols].to_string(index=False))
     print()
 
-    # Note if profit does NOT decrease with release_rule
     for scheme in SCHEMES:
         sub = df[df["scheme"] == scheme].sort_values("release_rule")
         profits = sub["attacker_profit"].tolist()

@@ -1,14 +1,3 @@
-"""Experiment 1: Throughput vs Arrival Rate
-
-Sweeps arrival_rate_tps ∈ {32,64,128,256} × block_interval_ms ∈ {250,500,1000,2000}
-for pipelined and sequential designs. Saves CSV + plots to results/.
-
-Usage:
-    python experiments/exp1_throughput.py           # full run (30 seeds, 120 s)
-    python experiments/exp1_throughput.py --quick   # 3 seeds, 15 s
-    python -m experiments.exp1_throughput           # module invocation
-    python experiments/exp1_throughput.py --committee real
-"""
 
 import argparse
 import os

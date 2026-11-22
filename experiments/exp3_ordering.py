@@ -1,11 +1,3 @@
-"""Experiment 3: ordering source, shuffle, and attacker PnL.
-
-Run with::
-
-    python -m experiments.exp3_ordering --trials 2000
-
-The experiment writes a compact CSV plus a plot to ``results/`` by default.
-"""
 
 from __future__ import annotations
 
@@ -72,8 +64,6 @@ def run_experiment(
     reveal_delay_ms: float = 120.0,
     block_interval_ms: float = 500.0,
 ) -> list[OrderingResult]:
-    """Run FIFO and three seed-source designs under identical traffic."""
-
     if trials <= 0 or batch_size <= 0:
         raise ValueError("trials and batch_size must be positive")
     designs = (
@@ -100,7 +90,6 @@ def run_experiment(
         reveal_ms = seal_ms + reveal_delay_ms
 
         for design, shuffled in designs:
-            # Reusing this seed makes the blind attack identical across designs.
             attack_rng = random.Random((seed << 40) ^ (trial << 8) ^ 0xA7)
             wrapped = wrap(user_txs, attack_rng, cfg)
             if shuffled:

@@ -1,4 +1,3 @@
-"""Experiment 5: capture risk for rotating subsets and one large committee."""
 
 from __future__ import annotations
 
@@ -47,8 +46,6 @@ def run_experiment(
     trials: int = 100_000,
     seed: int = 5,
 ) -> list[RotationResult]:
-    """Compute exact and Monte Carlo capture probabilities for each subset size."""
-
     if not 0 < threshold_fraction <= 1:
         raise ValueError("threshold_fraction must be in (0, 1]")
     big_threshold = math.ceil(total_members * threshold_fraction)

@@ -1,10 +1,3 @@
-"""Exact and simulated committee-capture probabilities.
-
-The model fixes a population of ``N`` members, of which ``A`` are controlled
-by the attacker.  A committee/subset of size ``n`` is sampled without
-replacement.  Its attacker count is therefore hypergeometric, not binomial.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -33,8 +26,6 @@ def compromise_probability(
     committee_size: int,
     threshold: int,
 ) -> float:
-    """Exact probability that a random committee contains at least ``t`` attackers."""
-
     total, attacker, committee, threshold = _validate(
         total_members, attacker_members, committee_size, threshold
     )
@@ -56,8 +47,6 @@ def subset_capture_probability(
     subset_size: int,
     threshold: int,
 ) -> float:
-    """Named alias for the rotating-subset case."""
-
     return compromise_probability(total_members, attacker_members, subset_size, threshold)
 
 
@@ -66,26 +55,16 @@ def one_big_committee_probability(
     attacker_members: int,
     threshold: int,
 ) -> float:
-    """Capture probability when the entire population is the committee.
-
-    With a fixed attacker population this is deterministic: either the
-    attacker already owns the threshold or it does not.  Keeping it in the
-    same API makes that contrast explicit in reports and experiments.
-    """
-
     return compromise_probability(total_members, attacker_members, total_members, threshold)
 
 
 def probability_over_rotations(single_rotation_probability: float, rotations: int) -> float:
-    """Probability of at least one capture across independent rotations."""
-
     probability = float(single_rotation_probability)
     count = int(rotations)
     if not 0 <= probability <= 1:
         raise ValueError("probability must be in [0, 1]")
     if count < 0:
         raise ValueError("rotations must be non-negative")
-    # log1p/expm1 remains accurate when p is very small.
     if count == 0 or probability == 0:
         return 0.0
     if probability == 1:
@@ -102,8 +81,6 @@ def monte_carlo_probability(
     trials: int = 100_000,
     seed: int = 0,
 ) -> float:
-    """Monte Carlo check of :func:`compromise_probability`."""
-
     total, attacker, committee, threshold = _validate(
         total_members, attacker_members, committee_size, threshold
     )
@@ -128,8 +105,6 @@ def monte_carlo_check(
     trials: int = 100_000,
     seed: int = 0,
 ) -> float:
-    """Compatibility alias used by the experiment description."""
-
     return monte_carlo_probability(
         total_members,
         attacker_members,
@@ -165,13 +140,10 @@ def compare_rotation(
     trials: int = 100_000,
     seed: int = 0,
 ) -> RotationComparison:
-    """Return the exact subset, Monte Carlo, and one-big-committee values."""
-
     exact = compromise_probability(
         total_members, attacker_members, committee_size, threshold
     )
     if big_committee_threshold is None:
-        # Preserve the subset's threshold fraction, rounding up.
         big_committee_threshold = math.ceil(threshold * total_members / committee_size)
     big = one_big_committee_probability(
         total_members, attacker_members, big_committee_threshold
@@ -198,7 +170,6 @@ def compare_rotation(
     )
 
 
-# Short aliases that read naturally in notebooks.
 prob_at_least_t = compromise_probability
 rotation_probability = compromise_probability
 

@@ -1,10 +1,3 @@
-"""Seminar demo: AES-GCM protected payload with a Shamir-shared AES key.
-
-This is deliberately a small educational demonstration, not the threshold
-encryption protocol modelled by Veilpipe.  The Shamir implementation is ours;
-AES-GCM is provided by the audited ``cryptography`` package.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,7 +5,6 @@ import secrets
 from typing import Iterable, Protocol
 
 
-# 2**521 - 1 is a Mersenne prime and comfortably contains a 256-bit AES key.
 PRIME = (1 << 521) - 1
 KEY_BYTES = 32
 
@@ -42,8 +34,6 @@ def split_secret(
     *,
     rng: _RandRange | None = None,
 ) -> list[Share]:
-    """Split a byte string into ``shares`` points with threshold ``t``."""
-
     if not secret:
         raise ValueError("secret cannot be empty")
     if not 2 <= threshold <= shares:
@@ -61,8 +51,6 @@ def split_secret(
 
 
 def recover_secret(shares: Iterable[Share], *, length: int = KEY_BYTES) -> bytes:
-    """Recover a secret using Lagrange interpolation at x=0."""
-
     points = list(shares)
     if not points:
         raise ValueError("at least one share is required")

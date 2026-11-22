@@ -1,5 +1,3 @@
-"""Attacker transactions used by Veilpipe's ordering experiments."""
-
 from __future__ import annotations
 
 import hashlib
@@ -47,8 +45,6 @@ def _transactions(batch: Any) -> list[Any]:
 
 
 def majority_direction(txs: Iterable[Any]) -> str:
-    """Return the majority canonical direction, breaking ties toward x-to-y."""
-
     counts = {X_TO_Y: 0, Y_TO_X: 0}
     for tx in txs:
         direction = _field(tx, ("direction", "side"))
@@ -86,13 +82,6 @@ def _batch_id(batch: Any) -> str:
 
 
 def on_reveal(batch: Any, now_ms: float, cfg: Any = None) -> Trade:
-    """Create the profitable-direction back-run observed after batch reveal.
-
-    A majority selling x moves the pool price down, so the back-run sells y to
-    buy x (and vice versa).  The trade becomes eligible after the configured
-    reaction time.
-    """
-
     now = float(now_ms)
     reaction = float(
         _cfg_value(
@@ -120,20 +109,11 @@ def on_reveal(batch: Any, now_ms: float, cfg: Any = None) -> Trade:
 def _random_direction(rng: Any) -> str:
     if hasattr(rng, "choice"):
         choice = rng.choice((X_TO_Y, Y_TO_X))
-        # NumPy may return a scalar string type; normalisation handles it.
         return normalize_direction(choice)
     return X_TO_Y if float(rng.random()) < 0.5 else Y_TO_X
 
 
 def wrap(txs: Sequence[Any] | Iterable[Any], rng: Any, cfg: Any = None) -> list[Any]:
-    """Blindly wrap a batch with an attacker front trade and back trade.
-
-    The front direction equals the true majority with probability ``leak_q``;
-    otherwise it is a random guess.  The paired back trade has the opposite
-    direction.  A later shuffle may reverse the pair, in which case valuing
-    the attacker's residual inventory at the outside price can produce a loss.
-    """
-
     if rng is None:
         rng = random.Random()
     original = list(txs)
@@ -170,13 +150,6 @@ def wrap(txs: Sequence[Any] | Iterable[Any], rng: Any, cfg: Any = None) -> list[
 
 
 def attack_profit(txs: Iterable[Any], pool: Pool, outside_price: float = 1.0) -> float:
-    """Execute trades and value the attacker's final inventory in units of y.
-
-    This accounting deliberately does not force the back trade to follow the
-    front trade.  If a shuffle reverses them, the interim inventory and fees
-    are therefore reflected in the final (possibly negative) result.
-    """
-
     p_ext = float(outside_price)
     if not math.isfinite(p_ext) or p_ext <= 0:
         raise ValueError("outside_price must be a finite positive number")

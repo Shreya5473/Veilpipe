@@ -9,8 +9,6 @@ from veilpipe.exchange import Pool, _trade_field, normalize_direction
 
 
 class FakeCommittee:
-    """Deterministic committee stub — no real cryptography needed."""
-
     def __init__(self, cfg: Any, *, decryption_fraction: float = 0.4, fail_rate: float = 0.0, rng: random.Random | None = None):
         self.cfg = cfg
         self.decryption_fraction = float(decryption_fraction)
@@ -33,8 +31,6 @@ def _fake_combined_bytes(batch_id: int) -> bytes:
 
 
 class FakePool:
-    """Thin wrapper around Pool that logs every swap."""
-
     def __init__(self, **kwargs: Any):
         self._pool = Pool(**kwargs)
         self.swap_log: list[tuple[str, float, float]] = []
