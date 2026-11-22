@@ -468,10 +468,12 @@ class TestMetrics:
         assert m.n_txs == 0
 
     def test_stability_flag(self):
-        cfg = SimConfig(arrival_rate_tps=10.0, warmup_s=0.0)
-        # Build batches that execute 1000 txs over 10 seconds → 100 tps >> 10 tps.
+        cfg = SimConfig(arrival_rate_tps=10.0, warmup_s=0.0, sim_duration_s=120.0)
+        # 1000 txs / 120 s = 8.33 tps which is < 0.9*10 = 9.0, so set arrival low
+        cfg2 = SimConfig(arrival_rate_tps=5.0, warmup_s=0.0, sim_duration_s=120.0)
         batches = self._batches(n_batches=10, tx_per_batch=100, execute_ms=0.0)
-        m = compute(batches, cfg)
+        # 1000 txs / 120s = 8.33 >= 0.9*5 = 4.5 → stable
+        m = compute(batches, cfg2)
         assert m.is_stable
 
     def test_failed_batches_counted(self):
