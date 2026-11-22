@@ -58,12 +58,20 @@ class Pipeline:
     def pending_count(self) -> int:
         return self._seq.pending_count
 
+    def _next_seal(self, now_ms: float) -> None:
+        self._eq.push(now_ms + self.cfg.block_interval_ms, (_EV_SEAL, None))
+
     def _handle_seal(self, now_ms: float):
         batch = self._seq.seal(now_ms)
         if batch is not None:
             self._start_decryption(batch, now_ms)
+        else:
+            # No txs pending — in sequential mode we must still reschedule
+            # or the simulation stalls with nothing left in the event queue.
+            if self.cfg.design == "sequential":
+                self._next_seal(now_ms)
         if self.cfg.design == "pipelined":
-            self._eq.push(now_ms + self.cfg.block_interval_ms, (_EV_SEAL, None))
+            self._next_seal(now_ms)
 
     def _start_decryption(self, batch: Batch, seal_ms: float):
         reveal_ms, failed, fail_ms, _ = self.committee.start_decryption(batch, seal_ms, batch.release_ms)
@@ -76,6 +84,9 @@ class Pipeline:
             else:
                 batch.failed = True
                 self._completed.append(batch)
+                # In sequential mode: batch is done (failed); schedule next seal.
+                if self.cfg.design == "sequential":
+                    self._next_seal(fail_ms if fail_ms is not None else seal_ms)
         else:
             self._eq.push(effective_reveal, (_EV_REVEAL, batch))
 
@@ -99,7 +110,7 @@ class Pipeline:
             tx.execute_ms = float(now_ms)
         self._completed.append(batch)
         if self.cfg.design == "sequential":
-            self._eq.push(now_ms + self.cfg.block_interval_ms, (_EV_SEAL, None))
+            self._next_seal(now_ms)
 
 
 __all__ = ["Pipeline", "MAX_RETRIES"]
