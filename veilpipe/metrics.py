@@ -41,7 +41,6 @@ class Metrics:
 
 
 def compute(batches: Iterable[Batch], cfg: SimConfig, warmup_ms: float = 0.0) -> Metrics:
-    """Compute Metrics from a single pipeline run."""
     if warmup_ms == 0.0:
         warmup_ms = cfg.warmup_ms
 
@@ -60,9 +59,10 @@ def compute(batches: Iterable[Batch], cfg: SimConfig, warmup_ms: float = 0.0) ->
         return Metrics(0.0, float("nan"), float("nan"), float("nan"), float("nan"),
                        False, 0.0, 0.0, len(good), 0, n_failed)
 
-    exec_times = [b.execute_ms for b in good if b.execute_ms is not None]
-    t_first, t_last = min(exec_times), max(exec_times)
-    window_s = (t_last - t_first) / 1_000.0 if t_last > t_first else 1.0
+    # Unbiased window: txs executed in [warmup_ms, sim_duration_ms]
+    window_s = (cfg.sim_duration_ms - warmup_ms) / 1_000.0
+    if window_s <= 0:
+        window_s = 1.0
     tps = n_txs / window_s
 
     delays.sort()
@@ -89,7 +89,6 @@ def compute(batches: Iterable[Batch], cfg: SimConfig, warmup_ms: float = 0.0) ->
 
 
 def run_many(cfg: SimConfig, committee_factory: Callable, pool_factory: Callable | None = None, n_seeds: int = 30) -> Metrics:
-    """Average Metrics over n_seeds independent seeds with 95% CI."""
     from .pipeline import Pipeline
     import dataclasses
 
@@ -133,7 +132,6 @@ def run_many(cfg: SimConfig, committee_factory: Callable, pool_factory: Callable
     )
 
 
-# Pre-tabulated t_{0.975} critical values
 _T_TABLE = {
     1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
     6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
