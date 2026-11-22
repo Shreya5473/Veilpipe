@@ -157,7 +157,7 @@ All settings live in one config object. Base values are in bold.
 | # | Script | Question | Status |
 |---|---|---|---|
 | 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? | Implemented |
-| 2 | `exp2_release_rule.py` | How much back-running does the release rule reduce, and what delay does it cost? | Implemented |
+| 2 | `exp2_release_rule.py` | What is the latency cost of the release rule, and how does it affect attacker back-run timing? | Implemented |
 | 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? | Implemented |
 | 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? | Not yet implemented (Aminta) |
 | 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? | Implemented |
@@ -170,4 +170,4 @@ All settings live in one config object. Base values are in bold.
 - The attacker is simplified, and the outside price of the asset is constant.
 - Members are assumed to be corrupted independently.
 - With one key shared by the whole committee, rotating subsets does not add confidentiality. We treat subsets as a load and liveness benefit.
-- Delaying the reveal reduces and delays back-running. It does not remove it.
+- The release rule pushes the attacker's target batch gap to `release_rule + 1` (e.g. rule 0 → gap 1, rule 2 → gap 3). Each rule step adds roughly 500 ms of p95 delay. Whether back-run profit actually decreases depends on the `arb_prob` assumption (how often an arbitrageur resets the pool price between batches). The release rule delays back-running but does not remove it.

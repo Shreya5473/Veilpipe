@@ -16,7 +16,7 @@ from tests.fakes import FakeCommittee, FakePool
 from veilpipe.attacker import on_reveal, attack_profit
 from veilpipe.config import SimConfig
 from veilpipe.exchange import Pool
-from veilpipe.metrics import run_many, compute
+from veilpipe.metrics import run_many, compute, _t95
 from veilpipe.ordering import make_seed, shuffle
 from veilpipe.pipeline import Pipeline
 
@@ -152,7 +152,7 @@ def _load_committee_factory(committee_mode):
             sys.exit(1)
 
 
-def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, arb_prob):
+def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, arb_prob, committee_mode="fake"):
     rows = []
     total = len(SCHEMES) * len(RELEASE_RULES)
     done = 0
@@ -175,7 +175,16 @@ def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, arb_prob):
 
             import math
             profit_vals = [r["mean_profit"] for r in per_seed_profits]
-            mean_profit = sum(profit_vals) / len(profit_vals)
+            n_p = len(profit_vals)
+            mean_profit = sum(profit_vals) / n_p
+            if n_p > 1:
+                var_p = sum((v - mean_profit) ** 2 for v in profit_vals) / (n_p - 1)
+                se_p = math.sqrt(var_p / n_p)
+                tc = _t95(n_p - 1)
+                ci_lo_p = mean_profit - tc * se_p
+                ci_hi_p = mean_profit + tc * se_p
+            else:
+                ci_lo_p = ci_hi_p = mean_profit
             gap_vals = [r["mean_gap"] for r in per_seed_profits if not math.isnan(r["mean_gap"])]
             fi_vals = [r["frac_immediate"] for r in per_seed_profits if not math.isnan(r["frac_immediate"])]
 
@@ -188,11 +197,11 @@ def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, arb_prob):
             rows.append({
                 "scheme": scheme,
                 "release_rule": rule,
-                "committee_model": "fake",
+                "committee_model": committee_mode,
                 "arb_prob": arb_prob,
                 "attacker_profit": mean_profit,
-                "attacker_profit_ci_low": min(r["ci_low"] for r in per_seed_profits),
-                "attacker_profit_ci_high": max(r["ci_high"] for r in per_seed_profits),
+                "attacker_profit_ci_low": ci_lo_p,
+                "attacker_profit_ci_high": ci_hi_p,
                 "frac_immediate": sum(fi_vals) / len(fi_vals) if fi_vals else float("nan"),
                 "mean_batch_gap": sum(gap_vals) / len(gap_vals) if gap_vals else float("nan"),
                 **m.as_dict(),
@@ -272,7 +281,7 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print(f"\n=== Exp 2: Release Rule Comparison (seeds={n_seeds}, sim={sim_s}s, committee={args.committee}, arb_prob={args.arb_prob}) ===\n")
 
-    df = run_sweep(n_seeds, sim_s, warmup_s, committee_factory, args.arb_prob)
+    df = run_sweep(n_seeds, sim_s, warmup_s, committee_factory, args.arb_prob, committee_mode=args.committee)
     csv = os.path.join(RESULTS_DIR, "exp2_release_rule.csv")
     df.to_csv(csv, index=False)
     print(f"  -> {csv}")
