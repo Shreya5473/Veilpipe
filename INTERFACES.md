@@ -108,6 +108,11 @@ class SimConfig:
     design: str = "pipelined"
     # "sequential" | "pipelined".
 
+    timeout_ms: float = 1000.0
+    # Decryption deadline offset (ms).
+    # Deadline = max(seal_ms, release_ms) + timeout_ms.
+    # Must be finite and positive.
+
     # ── Derived Properties ────────────────────────────────────────────────
     @property
     def threshold(self) -> int:
@@ -153,6 +158,7 @@ class SimConfig:
 | `leak_q` | 0 ≤ q ≤ 1 |
 | `reaction_time_ms` | ≥ 0 |
 | `withhold_fraction` | 0 ≤ f ≤ 1 |
+| `timeout_ms` | > 0 and finite |
 | `design` | ∈ {"sequential", "pipelined"} |
 
 ---

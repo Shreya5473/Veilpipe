@@ -68,8 +68,6 @@ flowchart LR
     A[Attacker] -. watches revealed batches .-> V
 ```
 
-<!-- Add your architecture figure here once saved in docs/ -->
-<!-- ![Architecture](docs/architecture.png) -->
 
 ## Designs compared
 
@@ -151,18 +149,19 @@ All settings live in one config object. Base values are in bold.
 | Release rule | **0**, 1, 2 batches |
 | Share withholding | 0, 5, 10, 20, 33 % |
 | Seed source | **threshold decryption**, beacon, trusted hardware |
+| Decryption timeout | **1000 ms** (deadline = max(seal_ms, release_ms) + timeout_ms) |
 | Runs per setting | 30 seeds, 120 s simulated, 10 s warmup |
 
 ## Experiments
 
-| # | Script | Question |
-|---|---|---|
-| 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? |
-| 2 | `exp2_release_rule.py` | How much back-running does the release rule reduce, and what delay does it cost? |
-| 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? |
-| 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? |
-| 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? |
-| 6 | `exp6_faults.py` | What happens when members withhold shares? |
+| # | Script | Question | Status |
+|---|---|---|---|
+| 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? | Implemented |
+| 2 | `exp2_release_rule.py` | How much back-running does the release rule reduce, and what delay does it cost? | Implemented |
+| 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? | Implemented |
+| 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? | Not yet implemented (Aminta) |
+| 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? | Implemented |
+| 6 | `exp6_faults.py` | What happens when members withhold shares? | Not yet implemented (Aminta) |
 
 ## Assumptions and limitations
 
