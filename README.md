@@ -3,7 +3,7 @@
 > Simulating threshold-encrypted mempools inside Layer 2 block times
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![Status](https://img.shields.io/badge/status-in%20development-orange)
+![Status](https://img.shields.io/badge/status-implemented-brightgreen)
 ![Course](https://img.shields.io/badge/course-Cryptography-lightgrey)
 
 ## Contents
@@ -99,17 +99,17 @@ Veilpipe/
 ├── pytest.ini
 ├── veilpipe/
 │   ├── config.py          all settings in one place
-│   ├── timing.py          decryption times from the papers, network delay
+│   ├── timing.py          decryption times from the papers, network delay  ✅
 │   ├── events.py          event queue and clock
 │   ├── entities.py        Tx, Batch and related objects
-│   ├── committee.py       shares, release rule, failures
+│   ├── committee.py       shares, release rule, failures  ✅
 │   ├── sequencer.py       arrivals, batching, sealing
 │   ├── pipeline.py        wires everything together
 │   ├── exchange.py        toy exchange
 │   ├── attacker.py        back-run and blind wrap attacks
 │   ├── ordering.py        seed and shuffle
 │   ├── metrics.py         summaries and confidence intervals
-│   ├── analytic.py        closed-form checks for the simulator
+│   ├── analytic.py        closed-form checks for the simulator  ✅
 │   └── rotation_math.py   collusion probabilities
 ├── experiments/           one script per experiment, plus plots
 ├── tests/                 unit tests and fakes
@@ -129,9 +129,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pytest
 python -m experiments.exp1_throughput
+python -m experiments.exp4_safe_region --quick   # Aminta: safe operating region heatmap
+python -m experiments.exp6_faults --quick        # Aminta: fault tolerance sweep
 ```
 
-Tests and experiments are added as we build them, so some commands will not do anything yet.
+Tests and all experiments are implemented and passing. Run `pytest` to verify, or add `--quick` to any experiment for a fast sweep (e.g. `python -m experiments.exp4_safe_region --quick`).
 
 ## Configuration
 
@@ -156,12 +158,12 @@ All settings live in one config object. Base values are in bold.
 
 | # | Script | Question | Status |
 |---|---|---|---|
-| 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? | Implemented |
-| 2 | `exp2_release_rule.py` | What is the latency cost of the release rule, and how does it affect attacker back-run timing? | Implemented |
-| 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? | Implemented |
-| 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? | Not yet implemented (Aminta) |
-| 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? | Implemented |
-| 6 | `exp6_faults.py` | What happens when members withhold shares? | Not yet implemented (Aminta) |
+| 1 | `exp1_throughput.py` | How much does pipelining raise throughput across block times? | Implemented ✅ |
+| 2 | `exp2_release_rule.py` | What is the latency cost of the release rule, and how does it affect attacker back-run timing? | Implemented ✅ |
+| 3 | `exp3_ordering.py` | Does the shuffle help, and how do the three seed sources compare? | Implemented ✅ |
+| 4 | `exp4_safe_region.py` | Which committee and batch settings fit each block time? | Implemented ✅ |
+| 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? | Implemented ✅ |
+| 6 | `exp6_faults.py` | What happens when members withhold shares? | Implemented ✅ |
 
 ## Assumptions and limitations
 
