@@ -174,3 +174,4 @@ All settings live in one config object. Base values are in bold.
 - Members are assumed to be corrupted independently.
 - With one key shared by the whole committee, rotating subsets does not add confidentiality. We treat subsets as a load and liveness benefit.
 - The release rule pushes the attacker's target batch gap to `release_rule + 1` (e.g. rule 0 → gap 1, rule 2 → gap 3). Each rule step adds roughly 500 ms of p95 delay. Whether back-run profit actually decreases depends on the `arb_prob` assumption (how often an arbitrageur resets the pool price between batches). The release rule delays back-running but does not remove it.
+- Combine runs on separate workers and does not occupy committee members; the analytic stability rule therefore uses share time plus network wait only.

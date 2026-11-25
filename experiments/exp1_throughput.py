@@ -40,7 +40,7 @@ def _load_committee_factory(committee_mode):
             sys.exit(1)
 
 
-def run_sweep(n_seeds, sim_s, warmup_s, committee_factory):
+def run_sweep(n_seeds, sim_s, warmup_s, committee_factory, committee_mode):
     rows = []
     total = len(DESIGNS) * len(BLOCK_INTERVALS) * len(ARRIVAL_RATES)
     done = 0
@@ -56,7 +56,10 @@ def run_sweep(n_seeds, sim_s, warmup_s, committee_factory):
                       f"tps={m.throughput_tps:6.1f} [{m.ci_low:.1f},{m.ci_high:.1f}] "
                       f"p95={m.p95_delay_ms:.0f}ms stable={m.is_stable} ({time.perf_counter()-t0:.1f}s)")
                 rows.append({"design": design, "block_interval_ms": interval,
-                             "arrival_rate_tps": rate, **m.as_dict()})
+                             "arrival_rate_tps": rate,
+                             "committee_model": committee_mode,
+                             "scheme": cfg.scheme,
+                             **m.as_dict()})
     return pd.DataFrame(rows)
 
 
@@ -112,7 +115,7 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     print(f"\n=== Exp 1: Throughput vs Arrival Rate (seeds={n_seeds}, sim={sim_s}s, committee={args.committee}) ===\n")
 
-    df = run_sweep(n_seeds, sim_s, warmup_s, committee_factory)
+    df = run_sweep(n_seeds, sim_s, warmup_s, committee_factory, args.committee)
     csv = os.path.join(RESULTS_DIR, "exp1_throughput.csv")
     df.to_csv(csv, index=False)
     print(f"  -> {csv}")

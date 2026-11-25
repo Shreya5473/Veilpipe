@@ -57,6 +57,7 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
             scheme=scheme,
             sim_duration_s=SIM_S,
             warmup_s=WARMUP_S,
+            timeout_ms=10000,
         )
 
         analytic_ok = is_stable_analytically(cfg)
@@ -65,13 +66,18 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
         m = run_many(cfg, lambda c, r: Committee(c, r), n_seeds=N_SEEDS)
         elapsed = time.perf_counter() - t0
 
-        agree = bool(analytic_ok) == bool(m.is_stable)
+        sim_ok = (
+            m.throughput_tps >= 0.9 * arrival_rate_tps
+            and m.p95_delay_ms == m.p95_delay_ms
+            and m.p95_delay_ms <= 4 * block_ms
+        )
+        agree = bool(analytic_ok) == bool(sim_ok)
         t = cfg.threshold
         print(
             f"[{idx:3d}/{total}] scheme={scheme:<8s} block={block_ms:4d}ms "
             f"N={N:3d} t={t:2d} B={B:3d} "
             f"T_dec={t_dec:6.1f}ms analytic={'OK' if analytic_ok else 'FAIL'} "
-            f"sim={'OK' if m.is_stable else 'FAIL'} agree={agree} ({elapsed:.1f}s)"
+            f"sim={'OK' if sim_ok else 'FAIL'} agree={agree} ({elapsed:.1f}s)"
         )
         rows.append({
             "scheme": scheme,
@@ -83,7 +89,7 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
             "arrival_rate_tps": arrival_rate_tps,
             "t_dec_ms": round(t_dec, 2),
             "analytic_stable": analytic_ok,
-            "sim_stable": m.is_stable,
+            "sim_stable": sim_ok,
             "analytic_sim_agree": agree,
             "throughput_tps": m.throughput_tps,
             "p95_delay_ms": m.p95_delay_ms,
