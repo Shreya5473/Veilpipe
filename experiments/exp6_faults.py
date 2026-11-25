@@ -1,20 +1,3 @@
-"""
-experiments/exp6_faults.py  –  Aminta's experiment
-
-Question: What happens when committee members withhold their shares?
-
-We sweep withholding fractions (0, 5, 10, 20, 30, 35, 40, 50 %) and measure:
-  - Throughput (tx/s)
-  - Decryption failure rate (fraction of batches that fail to decrypt)
-  - p95 end-to-end delay
-  - Whether the system is still stable
-
-Output
-------
-results/exp6_faults.csv
-results/exp6_throughput_<scheme>_<block>ms.png
-results/exp6_failure_rate_<scheme>_<block>ms.png
-"""
 from __future__ import annotations
 
 import math
@@ -40,7 +23,7 @@ RESULTS_DIR = os.path.join(os.path.dirname(__file__), "..", "results")
 
 WITHHOLD_FRACS  = [0.0, 0.05, 0.10, 0.20, 0.30, 0.35, 0.40, 0.50]
 THRESHOLD_FRACS = [0.5, 2 / 3]
-BLOCK_INTERVALS = [500, 1000]   # ms
+BLOCK_INTERVALS = [500, 1000]
 SCHEMES         = ["BTE2024", "OTS2025", "BEATMEV"]
 
 N_SEEDS  = 30
@@ -50,7 +33,6 @@ WARMUP_S = 5.0
 COLORS   = {0.5: "#457b9d", 2/3: "#e63946"}
 MARKERS  = {0.5: "o", 2/3: "s"}
 
-# Student-t 95% two-sided critical values (same table as veilpipe.metrics).
 _T_TABLE = {
     1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
     6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,

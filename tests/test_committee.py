@@ -31,7 +31,7 @@ def test_more_than_n_minus_t_withholders_fails():
         committee_size=n,
         subsets=1,
         threshold_frac=2 / 3,
-        withhold_fraction=0.35,  # floor(0.35 * 32) = 11 > n - t = 10
+        withhold_fraction=0.35,
         timeout_ms=10_000.0,
     )
     t = cfg.threshold

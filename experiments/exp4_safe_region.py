@@ -1,28 +1,3 @@
-"""
-experiments/exp4_safe_region.py  –  Aminta's experiment
-
-Question: Which combinations of committee size, threshold fraction, and
-batch size still allow decryption to finish inside the block time?
-
-We sweep:
-  - block times   : 250, 500, 1000, 2000 ms
-  - committee N   : 16, 32, 64, 128
-  - threshold frac: 1/2, 2/3
-  - batch sizes   : 32, 64, 128, 256
-  - schemes       : BTE2024, OTS2025, BEATMEV
-
-Arrival rate is set to B / (block_interval_s) so the expected real batch
-size is about B.
-
-For each combination we check the analytic stability condition
-(member occupancy = share + t-th network wait < S * block_interval_ms,
-with S=1) and also run a short simulation to get the empirical stable flag.
-
-Output
-------
-results/exp4_safe_region.csv
-results/exp4_safe_region_<scheme>.png  (one heatmap per scheme)
-"""
 from __future__ import annotations
 
 import os
@@ -118,12 +93,6 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
 
 
 def _make_heatmap(df: pd.DataFrame, scheme: str, out_path: str) -> None:
-    """
-    For a given scheme: one heatmap per block interval.
-    X-axis = batch size, Y-axis = committee size.
-    Cell colour = analytic_stable (green) or not (red).
-    Two sub-rows per committee size: one per threshold fraction.
-    """
     sub = df[df["scheme"] == scheme].copy()
     if sub.empty:
         return
@@ -180,7 +149,7 @@ def _make_heatmap(df: pd.DataFrame, scheme: str, out_path: str) -> None:
             for j in range(len(batch_sizes)):
                 v  = matrix[i][j]
                 sv = sim_matrix[i][j]
-                if not (v != v):  # not NaN
+                if not (v != v):
                     label = "✓" if v > 0.5 else "✗"
                     sim_lbl = "s✓" if sv > 0.5 else "s✗"
                     ax.text(j, i, f"{label}\n{sim_lbl}",
