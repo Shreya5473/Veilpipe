@@ -28,6 +28,8 @@ class SimConfig:
     leak_q: float = 0.5
     reaction_time_ms: float = 50.0
     withhold_fraction: float = 0.0
+    slow_member_fraction: float = 0.0
+    slow_member_factor: float = 2.0
     timeout_ms: float = 1000.0
     seed: int = 0
     design: str = "pipelined"
@@ -61,6 +63,11 @@ class SimConfig:
         self._check_nonneg("reaction_time_ms", self.reaction_time_ms)
         if not (0.0 <= self.withhold_fraction <= 1.0):
             raise ValueError(f"withhold_fraction must be in [0,1], got {self.withhold_fraction}")
+        if not (0.0 <= self.slow_member_fraction <= 1.0):
+            raise ValueError(
+                f"slow_member_fraction must be in [0,1], got {self.slow_member_fraction}"
+            )
+        self._check_pos("slow_member_factor", self.slow_member_factor)
         self._check_pos("timeout_ms", self.timeout_ms)
         if self.design not in VALID_DESIGNS:
             raise ValueError(f"design must be one of {sorted(VALID_DESIGNS)}, got {self.design!r}")

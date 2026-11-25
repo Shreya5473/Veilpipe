@@ -11,9 +11,12 @@ We sweep:
   - batch sizes   : 32, 64, 128, 256
   - schemes       : BTE2024, OTS2025, BEATMEV
 
+Arrival rate is set to B / (block_interval_s) so the expected real batch
+size is about B.
+
 For each combination we check the analytic stability condition
-(T_dec < S * block_interval_ms, with S=1) and also run a short simulation
-to get the empirical stable flag.
+(member occupancy = share + t-th network wait < S * block_interval_ms,
+with S=1) and also run a short simulation to get the empirical stable flag.
 
 Output
 ------
@@ -46,7 +49,7 @@ THRESHOLD_FRACS  = [0.5, 2 / 3]
 BATCH_SIZES      = [32, 64, 128, 256]
 SCHEMES          = ["BTE2024", "OTS2025", "BEATMEV"]
 
-N_SEEDS  = 5    # quick; set to 30 for the full run
+N_SEEDS  = 30
 SIM_S    = 30.0
 WARMUP_S = 3.0
 
@@ -69,12 +72,13 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
     print(f"Running {total} configurations …")
 
     for idx, (scheme, block_ms, N, frac, B) in enumerate(combos, 1):
+        arrival_rate_tps = B / (block_ms / 1000.0)
         cfg = SimConfig(
             block_interval_ms=float(block_ms),
             committee_size=N,
             threshold_frac=frac,
             batch_size_max=B,
-            arrival_rate_tps=64.0,
+            arrival_rate_tps=arrival_rate_tps,
             scheme=scheme,
             sim_duration_s=SIM_S,
             warmup_s=WARMUP_S,
@@ -86,12 +90,13 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
         m = run_many(cfg, lambda c, r: Committee(c, r), n_seeds=N_SEEDS)
         elapsed = time.perf_counter() - t0
 
+        agree = bool(analytic_ok) == bool(m.is_stable)
         t = cfg.threshold
         print(
             f"[{idx:3d}/{total}] scheme={scheme:<8s} block={block_ms:4d}ms "
             f"N={N:3d} t={t:2d} B={B:3d} "
             f"T_dec={t_dec:6.1f}ms analytic={'OK' if analytic_ok else 'FAIL'} "
-            f"sim={'OK' if m.is_stable else 'FAIL'} ({elapsed:.1f}s)"
+            f"sim={'OK' if m.is_stable else 'FAIL'} agree={agree} ({elapsed:.1f}s)"
         )
         rows.append({
             "scheme": scheme,
@@ -100,9 +105,11 @@ def run_sweep(quick: bool = False) -> pd.DataFrame:
             "threshold_frac": round(frac, 4),
             "threshold": t,
             "batch_size": B,
+            "arrival_rate_tps": arrival_rate_tps,
             "t_dec_ms": round(t_dec, 2),
             "analytic_stable": analytic_ok,
             "sim_stable": m.is_stable,
+            "analytic_sim_agree": agree,
             "throughput_tps": m.throughput_tps,
             "p95_delay_ms": m.p95_delay_ms,
         })
@@ -131,12 +138,10 @@ def _make_heatmap(df: pd.DataFrame, scheme: str, out_path: str) -> None:
     for ax, block_ms in zip(axes, block_intervals):
         d = sub[sub["block_interval_ms"] == block_ms]
 
-        # Build a matrix: rows = (N, frac), cols = B
         committee_sizes = sorted(COMMITTEE_SIZES)
         threshold_fracs = sorted(THRESHOLD_FRACS)
         batch_sizes     = sorted(BATCH_SIZES)
 
-        # Row labels
         row_labels = []
         matrix     = []
         sim_matrix = []
@@ -171,7 +176,6 @@ def _make_heatmap(df: pd.DataFrame, scheme: str, out_path: str) -> None:
         ax.set_xlabel("Batch size")
         ax.set_title(f"{block_ms} ms block", fontweight="bold")
 
-        # Annotate
         for i in range(len(row_labels)):
             for j in range(len(batch_sizes)):
                 v  = matrix[i][j]
@@ -207,6 +211,9 @@ def main():
     df.to_csv(csv_path, index=False)
     print(f"  → {csv_path}")
 
+    n_disagree = int((df["analytic_stable"] != df["sim_stable"]).sum())
+    print(f"Analytic vs simulation disagreements: {n_disagree} / {len(df)}")
+
     for scheme in SCHEMES:
         out = os.path.join(RESULTS_DIR, f"exp4_safe_region_{scheme}.png")
         _make_heatmap(df, scheme, out)
@@ -214,7 +221,8 @@ def main():
     print("\nSummary (BTE2024, 500ms block):")
     sub = df[(df["scheme"] == "BTE2024") & (df["block_interval_ms"] == 500)]
     print(sub[["committee_size", "threshold_frac", "batch_size",
-               "t_dec_ms", "analytic_stable", "sim_stable"]].to_string(index=False))
+               "t_dec_ms", "analytic_stable", "sim_stable",
+               "analytic_sim_agree"]].to_string(index=False))
     print("\nDone.")
 
 

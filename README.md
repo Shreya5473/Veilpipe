@@ -149,7 +149,8 @@ All settings live in one config object. Base values are in bold.
 | Network delay (median) | 20, **50**, 100, 200 ms |
 | Scheme timings | BTE 2024, one-time setup 2025, BEAT-MEV |
 | Release rule | **0**, 1, 2 batches |
-| Share withholding | 0, 5, 10, 20, 33 % |
+| Share withholding | 0, 5, 10, 20, **30**, 35, 40, 50 % |
+| Slow members | fraction **0.0**, factor **2.0** (off in base results) |
 | Seed source | **threshold decryption**, beacon, trusted hardware |
 | Decryption timeout | **1000 ms** (deadline = max(seal_ms, release_ms) + timeout_ms) |
 | Runs per setting | 30 seeds, 120 s simulated, 10 s warmup |
@@ -167,7 +168,7 @@ All settings live in one config object. Base values are in bold.
 
 ## Assumptions and limitations
 
-- Decryption times come from the published papers (single-threaded laptop runs). No real cryptography runs inside the simulator.
+- Decryption times come from the published papers (single-threaded laptop runs). No real cryptography runs inside the simulator. `combined_bytes` is a 32-byte simulation stand-in used only as shuffle-seed input.
 - Network delays are random draws from a distribution we chose.
 - The attacker is simplified, and the outside price of the asset is constant.
 - Members are assumed to be corrupted independently.

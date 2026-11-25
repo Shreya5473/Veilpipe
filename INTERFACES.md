@@ -99,7 +99,15 @@ class SimConfig:
     # ── Share Withholding ─────────────────────────────────────────────────
     withhold_fraction: float = 0.0
     # Fraction of committee members that withhold their share.
-    # README: 0 | 0.05 | 0.10 | 0.20 | 0.33.
+    # README: 0 | 0.05 | 0.10 | 0.20 | 0.30 | 0.35 | 0.40 | 0.50.
+
+    # ── Slow members (Aminta) ─────────────────────────────────────────────
+    slow_member_fraction: float = 0.0
+    # Fraction of members whose share computation is slowed.
+    # Default 0.0 so base results have no hidden slow members.
+
+    slow_member_factor: float = 2.0
+    # Multiplier applied to share_ms for slow members.
 
     # ── Simulation Control ────────────────────────────────────────────────
     seed: int = 0
@@ -158,6 +166,8 @@ class SimConfig:
 | `leak_q` | 0 ≤ q ≤ 1 |
 | `reaction_time_ms` | ≥ 0 |
 | `withhold_fraction` | 0 ≤ f ≤ 1 |
+| `slow_member_fraction` | 0 ≤ f ≤ 1 |
+| `slow_member_factor` | > 0 and finite |
 | `timeout_ms` | > 0 and finite |
 | `design` | ∈ {"sequential", "pipelined"} |
 
@@ -257,6 +267,7 @@ class Batch:
     retry_count:    int   = 0
     combined_bytes: bytes = field(default_factory=lambda: b"\x00" * 32)
     # Set by Committee.start_decryption(); used as shuffle-seed input.
+    # This is a 32-byte simulation stand-in, not real ciphertext.
 
     def __len__(self) -> int: ...  # len(txs)
 
@@ -578,7 +589,8 @@ def sample_net_delay(rng: random.Random, cfg: SimConfig, size: int = 1) -> float
 class Committee:
     def __init__(self, cfg: SimConfig, rng: random.Random) -> None:
         """Initialise N members split into S subsets.
-        Some members are slow (slowdown factor > 1).
+        Slow members: fraction cfg.slow_member_fraction (default 0.0),
+        factor cfg.slow_member_factor (default 2.0).
         Some withhold shares (fraction cfg.withhold_fraction).
         """
 
@@ -590,7 +602,8 @@ class Committee:
     ) -> tuple[float, bool, float | None, float]:
         """Schedule decryption of batch and return timing.
 
-        Side-effect: sets batch.combined_bytes to the combined output bytes.
+        Side-effect: sets batch.combined_bytes to a 32-byte simulation
+        stand-in (not real threshold-decryption ciphertext).
 
         Returns
         -------
@@ -625,19 +638,20 @@ def expected_reveal_ms(cfg: SimConfig) -> float:
     """Closed-form expected decryption time.
 
     T_dec = share_ms(B, scheme) + t-th_expected_network_delay + combine_ms(B, scheme)
-    where t-th_expected_network_delay is the expected value of the t-th order
-    statistic of t i.i.d. log-normal network delays.
+    where t-th_expected_network_delay is the expected t-th smallest of
+    n = cfg.subset_size i.i.d. log-normal delays, Blom p = (t-0.375)/(n+0.25).
+    B = min(batch_size_max, arrival_rate_tps * block_interval_ms / 1000).
     """
 
 def stability_bound(cfg: SimConfig) -> float:
-    """Return the maximum stable arrival rate for the given configuration.
+    """Occupancy budget (ms): S * block_interval_ms.
 
-    The system is stable iff T_dec < S * block_interval_ms, where S is the
-    number of subsets (Aminta's stability rule).
+    A member is occupied by share time plus network wait until the t-th
+    share arrives. Combine does not occupy members (matches committee.py).
     """
 
 def is_stable_analytically(cfg: SimConfig) -> bool:
-    """True iff expected_reveal_ms(cfg) < cfg.subsets * cfg.block_interval_ms."""
+    """True iff share_ms(B) + E[t-th network wait] < S * block_interval_ms."""
 ```
 
 ---
