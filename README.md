@@ -166,6 +166,22 @@ All settings live in one config object. Base values are in bold.
 | 5 | `exp5_rotation.py` | What do subsets give us in capacity and collusion risk? | Implemented ✅ |
 | 6 | `exp6_faults.py` | What happens when members withhold shares? | Implemented ✅ |
 
+## Results
+
+CSV files and figures live in `results/`. The numbers below are from 30 seeds unless noted. Exp 1 used the real committee model and BTE 2024 timings.
+
+**Exp 1 — throughput.** Pipelining keeps up with arrivals of 32, 64 and 128 tx/s at 250–1000 ms blocks (p95 delay about 400–2600 ms). At 256 tx/s every pipelined setting collapses. Sequential design is narrower: 128 tx/s already fails at 250 ms, and 64 tx/s is only marginally stable at 500 ms (about 56 tx/s, p95 about 3.8 s). See `results/exp1_throughput_pipelined.png`, `results/exp1_throughput_sequential.png`, and `results/exp1_stability_heatmap.png`.
+
+**Exp 2 — release rule.** Throughput stays near 64 tx/s for rules 0–2. Each extra rule step adds about 500 ms of p95 delay and pushes the attacker’s mean batch gap from 1 to 2 to 3. Mean attacker profit on the toy exchange is negative under our `arb_prob=0.5` assumption; the rule delays back-running rather than removing it.
+
+**Exp 3 — ordering.** FIFO leaves the attacker in front of the victim (front-before-back rate 1.0, mean profit about +329 y). A shuffle seeded by threshold decryption, hardware, or a beacon drops that rate to about 0.5 and turns mean profit negative. The beacon seed adds about 1.6 s of ordering delay.
+
+**Exp 4 — safe operating region.** Simulation stability now requires throughput ≥ 0.9 × arrival **and** p95 delay ≤ 4 × block interval, with a 10 s timeout so batches are not failed for slow decryption. The analytic occupancy rule is unchanged. Across 384 settings, analytic and simulation disagree on **36** (mostly 250 ms blocks, where occupancy can look fine but p95 delay exceeds 1 s). Agreement is complete at 1000 ms and 2000 ms. Heatmaps: `results/exp4_safe_region_BTE2024.png`, `results/exp4_safe_region_OTS2025.png`, `results/exp4_safe_region_BEATMEV.png`.
+
+**Exp 5 — rotation.** With 128 members and 48 corrupted, a 2/3 threshold on a size-16 subset is captured in a given rotation with probability about 0.7%. Size 32 drops that to about 0.004%. One big 128-member committee is not captured under this corruption model.
+
+**Exp 6 — faults.** At 500 ms and BTE 2024, throughput stays near 64 tx/s with zero failures while the withhold fraction is below the threshold slack. Failures appear once withholding exceeds what the remaining honest shares can cover; see `results/exp6_throughput_*` and `results/exp6_failure_rate_*`.
+
 ## Assumptions and limitations
 
 - Decryption times come from the published papers (single-threaded laptop runs). No real cryptography runs inside the simulator. `combined_bytes` is a 32-byte simulation stand-in used only as shuffle-seed input.
