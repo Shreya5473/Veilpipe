@@ -149,11 +149,11 @@ All settings live in one config object. Base values are in bold.
 | Network delay (median) | 20, **50**, 100, 200 ms |
 | Scheme timings | BTE 2024, one-time setup 2025, BEAT-MEV |
 | Release rule | **0**, 1, 2 batches |
-| Share withholding | 0, 5, 10, 20, **30**, 35, 40, 50 % |
+| Share withholding | **0**, 5, 10, 20, 30, 35, 40, 50 % |
 | Slow members | fraction **0.0**, factor **2.0** (off in base results) |
 | Seed source | **threshold decryption**, beacon, trusted hardware |
-| Decryption timeout | **1000 ms** (deadline = max(seal_ms, release_ms) + timeout_ms) |
-| Runs per setting | 30 seeds, 120 s simulated, 10 s warmup |
+| Decryption timeout | **1000 ms** (deadline = max(seal_ms, release_ms) + timeout_ms) (Exp 4 uses 10000 ms so batches are not failed by the timeout) |
+| Runs per setting | 30 seeds. Exps 1 and 2: 120 s simulated, 10 s warmup. Exp 4: 30 s, 3 s warmup. Exp 6: 60 s, 5 s warmup. |
 
 ## Experiments
 
@@ -170,17 +170,17 @@ All settings live in one config object. Base values are in bold.
 
 CSV files and figures live in `results/`. The numbers below are from 30 seeds unless noted. Exp 1 used the real committee model and BTE 2024 timings.
 
-**Exp 1 — throughput.** Pipelining keeps up with arrivals of 32, 64 and 128 tx/s at 250–1000 ms blocks (p95 delay about 400–2600 ms). At 256 tx/s every pipelined setting collapses. Sequential design is narrower: 128 tx/s already fails at 250 ms, and 64 tx/s is only marginally stable at 500 ms (about 56 tx/s, p95 about 3.8 s). See `results/exp1_throughput_pipelined.png`, `results/exp1_throughput_sequential.png`, and `results/exp1_stability_heatmap.png`.
+**Exp 1 — throughput.** Pipelining keeps up with arrivals of 32, 64 and 128 tx/s at 250–1000 ms blocks (p95 delay about 400–2600 ms). At 256 tx/s every pipelined setting collapses. A 256 transaction batch takes about 1.4 s to decrypt, longer than the 1 s timeout, so every batch fails and throughput is 0. This is a timeout failure, not a growing queue. Sequential design is narrower: 128 tx/s already fails at 250 ms, and 64 tx/s is only marginally stable at 500 ms (about 56 tx/s, p95 about 3.8 s). See `results/exp1_throughput_pipelined.png`, `results/exp1_throughput_sequential.png`, and `results/exp1_stability_heatmap.png`.
 
-**Exp 2 — release rule.** Throughput stays near 64 tx/s for rules 0–2. Each extra rule step adds about 500 ms of p95 delay and pushes the attacker’s mean batch gap from 1 to 2 to 3. Mean attacker profit on the toy exchange is negative under our `arb_prob=0.5` assumption; the rule delays back-running rather than removing it.
+**Exp 2 — release rule.** Throughput stays near 64 tx/s for rules 0–2. Each extra rule step adds up to one block interval of delay (500 ms for BEAT-MEV; about 300 ms for the first step with BTE and one-time setup, because their decryption already takes a large part of the block). The attacker's mean batch gap at rule 0 is 1.0 (BEAT-MEV), 1.2 (BTE) and 1.4 (one-time setup), and reaches 3.0 at rule 2. Mean attacker profit on the toy exchange is negative under our `arb_prob=0.5` assumption; the rule delays back-running rather than removing it.
 
 **Exp 3 — ordering.** FIFO leaves the attacker in front of the victim (front-before-back rate 1.0, mean profit about +329 y). A shuffle seeded by threshold decryption, hardware, or a beacon drops that rate to about 0.5 and turns mean profit negative. The beacon seed adds about 1.6 s of ordering delay.
 
-**Exp 4 — safe operating region.** Simulation stability now requires throughput ≥ 0.9 × arrival **and** p95 delay ≤ 4 × block interval, with a 10 s timeout so batches are not failed for slow decryption. The analytic occupancy rule is unchanged. Across 384 settings, analytic and simulation disagree on **36** (mostly 250 ms blocks, where occupancy can look fine but p95 delay exceeds 1 s). Agreement is complete at 1000 ms and 2000 ms. Heatmaps: `results/exp4_safe_region_BTE2024.png`, `results/exp4_safe_region_OTS2025.png`, `results/exp4_safe_region_BEATMEV.png`.
+**Exp 4 — safe operating region.** Simulation stability now requires throughput ≥ 0.9 × arrival **and** p95 delay ≤ 4 × block interval, with a 10 s timeout so batches are not failed for slow decryption. The analytic occupancy rule is unchanged. Across 384 settings, analytic and simulation disagree on **36** (mostly 250 ms blocks, where occupancy can look fine but p95 delay exceeds 1 s). 28 of the 36 are at 250 ms and 8 at 500 ms; 24 are BEAT-MEV. The two rules answer different questions: the analytic rule checks member capacity only (share time plus network wait), while the simulation also requires p95 delay <= 4 x block interval. BEAT-MEV's long single-thread combine raises delay but not member occupancy, so the analytic rule is optimistic for BEAT-MEV. Agreement is complete at 1000 ms and 2000 ms. Heatmaps: `results/exp4_safe_region_BTE2024.png`, `results/exp4_safe_region_OTS2025.png`, `results/exp4_safe_region_BEATMEV.png`.
 
 **Exp 5 — rotation.** With 128 members and 48 corrupted, a 2/3 threshold on a size-16 subset is captured in a given rotation with probability about 0.7%. Size 32 drops that to about 0.004%. One big 128-member committee is not captured under this corruption model.
 
-**Exp 6 — faults.** At 500 ms and BTE 2024, throughput stays near 64 tx/s with zero failures while the withhold fraction is below the threshold slack. Failures appear once withholding exceeds what the remaining honest shares can cover; see `results/exp6_throughput_*` and `results/exp6_failure_rate_*`.
+**Exp 6 — faults.** At 500 ms and BTE 2024, throughput stays near 64 tx/s with zero failures while the withhold fraction is below the threshold slack. With n = 32 and t = 22, up to 10 members can withhold. At 30% (9 withholders) every batch still decrypts. At 35% (11 withholders) every batch fails, so throughput is 0. The failure is all or nothing because the withholders are fixed for the whole run; intermittent withholding is not modelled. See `results/exp6_throughput_*` and `results/exp6_failure_rate_*`.
 
 ## Assumptions and limitations
 
@@ -191,3 +191,6 @@ CSV files and figures live in `results/`. The numbers below are from 30 seeds un
 - With one key shared by the whole committee, rotating subsets does not add confidentiality. We treat subsets as a load and liveness benefit.
 - The release rule pushes the attacker's target batch gap to `release_rule + 1` (e.g. rule 0 → gap 1, rule 2 → gap 3). Each rule step adds roughly 500 ms of p95 delay. Whether back-run profit actually decreases depends on the `arb_prob` assumption (how often an arbitrageur resets the pool price between batches). The release rule delays back-running but does not remove it.
 - Combine runs on separate workers and does not occupy committee members; the analytic stability rule therefore uses share time plus network wait only.
+- Withholding members are chosen once at the start of a run and stay silent for the whole run.
+- The base decryption timeout is 1000 ms, which fails batches that take longer to decrypt (e.g. a 256 transaction batch with BTE 2024).
+- Exp 4 sets the arrival rate to B / block interval so that the real batch size is about B.
